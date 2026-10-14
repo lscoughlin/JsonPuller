@@ -1,0 +1,44 @@
+# --- Build artifacts (FPC / Lazarus) -----------------------------------------
+*.o
+*.ppu
+*.a
+*.compiled
+*.lrs
+bin/
+lib/
+backup/
+dist/
+
+# --- Lazarus package build outputs -------------------------------------------
+# The generated registration unit and the file list are derived from the
+# package file, which is the authoritative source.
+packagefiles.xml
+/JsonPuller.pas
+
+# --- Plans and local working notes -------------------------------------------
+plan/
+
+# --- Editor / OS noise -------------------------------------------------------
+.DS_Store
+Thumbs.db
+*.lps
+*.bak
+*~
+*.orig
+*.rej
+*.swp
+*.swo
+*.tmp
+.obsidian/
+
+# --- Logs --------------------------------------------------------------------
+*.log
+
+# --- Python tooling ----------------------------------------------------------
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+
+# --- Task runner -------------------------------------------------------------
+.task

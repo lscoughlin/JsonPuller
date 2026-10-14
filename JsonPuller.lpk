@@ -1,0 +1,93 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<CONFIG>
+  <Package Version="5">
+    <PathDelim Value="/"/>
+    <Name Value="JsonPuller"/>
+    <Type Value="Package"/>
+    <Author Value="Liam Seamus Coughlin"/>
+    <License Value="Apache-2.0"/>
+    <Description Value="A JSON pull parser for Object Pascal."/>
+    <Version Major="0" Minor="1" Release="0" Build="0"/>
+    <Files Count="12">
+      <Item1>
+        <Filename Value="src/jsonpullerpkg.pas"/>
+        <Type Value="Main Unit"/>
+        <UnitName Value="jsonpullerpkg"/>
+      </Item1>
+      <Item2>
+        <Filename Value="src/JsonPuller.pas"/>
+        <UnitName Value="JsonPuller"/>
+      </Item2>
+      <Item3>
+        <Filename Value="src/JsonPuller.Options.pas"/>
+        <UnitName Value="JsonPuller.Options"/>
+      </Item3>
+      <Item4>
+        <Filename Value="src/JsonPuller.Errors.pas"/>
+        <UnitName Value="JsonPuller.Errors"/>
+      </Item4>
+      <Item5>
+        <Filename Value="src/JsonPuller.Events.pas"/>
+        <UnitName Value="JsonPuller.Events"/>
+      </Item5>
+      <Item6>
+        <Filename Value="src/JsonPuller.Input.pas"/>
+        <UnitName Value="JsonPuller.Input"/>
+      </Item6>
+      <Item7>
+        <Filename Value="src/JsonPuller.Scanner.Core.pas"/>
+        <UnitName Value="JsonPuller.Scanner.Core"/>
+      </Item7>
+      <Item8>
+        <Filename Value="src/JsonPuller.Scanner.Comment.pas"/>
+        <UnitName Value="JsonPuller.Scanner.Comment"/>
+      </Item8>
+      <Item9>
+        <Filename Value="src/JsonPuller.Scanner.Literal.pas"/>
+        <UnitName Value="JsonPuller.Scanner.Literal"/>
+      </Item9>
+      <Item10>
+        <Filename Value="src/JsonPuller.Scanner.pas"/>
+        <UnitName Value="JsonPuller.Scanner"/>
+      </Item10>
+      <Item11>
+        <Filename Value="src/JsonPuller.Parser.pas"/>
+        <UnitName Value="JsonPuller.Parser"/>
+      </Item11>
+      <Item12>
+        <Filename Value="src/JsonPuller.JSON.pas"/>
+        <UnitName Value="JsonPuller.JSON"/>
+      </Item12>
+    </Files>
+    <RequiredPkgs Count="1">
+      <Item1>
+        <PackageName Value="FCL"/>
+      </Item1>
+    </RequiredPkgs>
+    <UsagePkgs Count="0"/>
+    <UnitPath Count="1">
+      <Item1>
+        <UnitPath Value="src"/>
+      </Item1>
+    </UnitPath>
+    <CompilerOptions>
+      <Version Value="11"/>
+      <Target>
+        <Filename Value="lib/$(TargetCPU)-$(TargetOS)"/>
+      </Target>
+      <SearchPaths>
+        <IncludeFiles Value="$(ProjOutDir)"/>
+        <OtherUnitFiles Value="src"/>
+        <UnitOutputDirectory Value="lib/$(TargetCPU)-$(TargetOS)"/>
+      </SearchPaths>
+      <Parsing>
+        <SyntaxOptions>
+          <SyntaxMode Value="Delphi"/>
+        </SyntaxOptions>
+      </Parsing>
+    </CompilerOptions>
+    <PublishOptions>
+      <Version Value="2"/>
+    </PublishOptions>
+  </Package>
+</CONFIG>
