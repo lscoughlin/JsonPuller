@@ -567,6 +567,38 @@ end.
 The caller releases the stream. The puller reads the stream. Ownership of
 the stream stays with the caller.
 
+## Example: JSON Lines
+
+A JSON Lines text (`.jsonl`, also called NDJSON) holds one JSON value on each
+line. `AllowMultipleValues(True)` lets the puller read such a text. The
+setting accepts any white space between the values, so a blank line and the
+CRLF line end are valid. A text with no value is valid and has no event
+between the stream start and the stream end.
+
+```pascal
+factory := TJsonPullerFactory.Create;
+factory.AllowMultipleValues(True);
+puller := factory.FromFile(handle);
+while puller.HasNext do
+begin
+  event := puller.Next;
+  // the events of line 1, then the events of line 2, and so on
+end;
+```
+
+The events of the values follow each other between one stream start and one
+stream end. The nest level of each value starts again at 0. A caller finds the
+start of a new value as an event with nest level 0 that is not an end event.
+`Parse(event, data)` builds one value of the text. The whole-stream `Parse`
+returns a `TJSONArray` that holds each value, also for a text of one value.
+A syntax error on a later line raises the error when the puller reaches that
+line. The lines before it are already read. Without the setting, a second
+value raises an error.
+
+The memory follows the largest line when the event log is off (see
+"Streaming and Memory"), so a large `.jsonl` file needs no more memory than
+one line.
+
 ## Streaming and Memory
 
 The puller reads a stream source and a file source in blocks of 8192
@@ -593,7 +625,7 @@ The memory that the puller holds follows this table:
 | A string or byte source | One character value per input character |
 | A stream or file source | One read block, plus the characters of a token that crosses a block |
 | The current token | One token |
-| The event log | One event per event that `Next` has returned |
+| The event log | One event per event that `Next` has returned. None when `KeepEventLog` is false. |
 | The JSON tree | One value per node, for the `Parse` call only |
 
 The `Parse` operation reads the whole remaining text, because it builds the

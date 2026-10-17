@@ -35,6 +35,11 @@ type
     FParser: TJsonParser;
     FLog: array of TJsonEvent;
     FLogLen: Integer;
+    FCount: Integer;
+    FKeepLog: Boolean;
+    FMultiple: Boolean;
+    FWindowActive: Boolean;
+    FLast: TJsonEvent;
     FDone: Boolean;
     FFailed: Boolean;
     FErrorClass: EJsonErrorClass;
@@ -43,6 +48,8 @@ type
     procedure Guard;
     function EventAt(AIndex: Integer): TJsonEvent;
     function FindEvent(const AEvent: TJsonEvent): Integer;
+    procedure ResetWindow;
+    procedure ParseWindow(const AEvent: TJsonEvent; out AData: TJSONData);
   public
     constructor Create(AInput: TJsonInput; const AOptions: TJsonOptions);
     destructor Destroy; override;
@@ -51,13 +58,22 @@ type
     /// true while an event remains
     function HasNext: Boolean;
     /// read the whole event stream into one FCL JSON value. The caller
-    /// releases the result.
+    /// releases the result. When the factory allowed several values, the
+    /// result is a TJSONArray that holds each value.
     function Parse: TJSONData; overload;
     /// read the value that starts at event. The caller releases data.
-    /// A stream start and a stream end set data to nil.
+    /// A stream start and a stream end set data to nil. After the call,
+    /// the next Next returns the event that follows the value.
+    /// When the factory turned the event log off, event must be the event
+    /// that Next returned last.
     procedure Parse(const event: TJsonEvent; out data: TJSONData); overload;
     /// the number of events that Next has returned
     function EventLogLength: Integer;
+    /// true while the puller keeps a log of the events. The factory sets the
+    /// initial value. The caller can change it before the first call of Next.
+    property KeepEventLog: Boolean read FKeepLog write FKeepLog;
+    /// true when the text can hold several top-level values
+    property AllowMultipleValues: Boolean read FMultiple;
   end;
 
   /// the source factory. The factory holds the dialect settings.
@@ -73,6 +89,13 @@ type
     procedure AllowMissingValues(value: Boolean; asNull: Boolean = False);
     procedure AllowLeadingZeros(value: Boolean = False);
     procedure AllowLeadingDecimalPoint(value: Boolean = False);
+    /// with false, the puller keeps no log of the events. Memory then follows
+    /// the nesting depth and the size of the largest value that Parse builds.
+    procedure KeepEventLog(value: Boolean = True);
+    /// with true, the text can hold several top-level values separated by white
+    /// space, as JSON Lines does. The events of the values follow each other
+    /// between one stream start and one stream end.
+    procedure AllowMultipleValues(value: Boolean = False);
     function FromFile(&file: handle): TJsonPuller;
     function FromStream(astream: TStream): TJsonPuller;
     function FromBytes(const astream: TBytes): TJsonPuller;
@@ -93,6 +116,10 @@ begin
   FScanner := TJsonScanner.Create(AInput, AOptions);
   FParser := TJsonParser.Create(FScanner, AOptions);
   FLogLen := 0;
+  FCount := 0;
+  FKeepLog := AOptions.KeepEventLog;
+  FMultiple := AOptions.AllowMultipleValues;
+  FWindowActive := False;
   FDone := False;
   FFailed := False;
 end;
@@ -120,7 +147,14 @@ end;
 
 function TJsonPuller.EventLogLength: Integer;
 begin
-  Result := FLogLen;
+  Result := FCount;
+end;
+
+procedure TJsonPuller.ResetWindow;
+begin
+  FWindowActive := False;
+  FLogLen := 0;
+  SetLength(FLog, 0);
 end;
 
 function TJsonPuller.Next: TJsonEvent;
@@ -142,10 +176,15 @@ begin
       raise;
     end;
   end;
-  if FLogLen >= Length(FLog) then
-    SetLength(FLog, FLogLen + 32);
-  FLog[FLogLen] := Result;
-  Inc(FLogLen);
+  if FKeepLog or FWindowActive then
+  begin
+    if FLogLen >= Length(FLog) then
+      SetLength(FLog, FLogLen + 32);
+    FLog[FLogLen] := Result;
+    Inc(FLogLen);
+  end;
+  Inc(FCount);
+  FLast := Result;
   if Result.EventType = jetStreamEnd then
     FDone := True;
 end;
@@ -189,25 +228,77 @@ var
 begin
   Result := nil;
   Guard;
+  if not FKeepLog then
+  begin
+    if FCount > 0 then
+      raise EJsonParserError.Create(
+        'The puller already read the stream', 1, 1);
+    FWindowActive := True;
+  end;
   try
     Event := EventAt(0);
     if Event.EventType <> jetStreamStart then
       raise EJsonParserError.Create(
         'The puller already read the stream', Event.Line, Event.Column);
     Index := 1;
-    Result := BuildJsonValue(EventAt, Index);
-    Event := EventAt(Index);
-    if Event.EventType <> jetStreamEnd then
-      raise EJsonParserError.Create(
-        'The text has a second value', Event.Line, Event.Column);
+    if FMultiple then
+    begin
+      // several values: the result is an array of the values
+      Result := TJSONArray.Create;
+      while EventAt(Index).EventType <> jetStreamEnd do
+        TJSONArray(Result).Add(BuildJsonValue(EventAt, Index));
+    end
+    else
+    begin
+      Result := BuildJsonValue(EventAt, Index);
+      Event := EventAt(Index);
+      if Event.EventType <> jetStreamEnd then
+        raise EJsonParserError.Create(
+          'The text has a second value', Event.Line, Event.Column);
+    end;
+    if not FKeepLog then
+      ResetWindow;
   except
     on E: EJsonError do
     begin
       Result.Free;
       Result := nil;
+      if not FKeepLog then
+        ResetWindow;
       Remember(E);
       raise;
     end;
+  end;
+end;
+
+procedure TJsonPuller.ParseWindow(const AEvent: TJsonEvent;
+  out AData: TJSONData);
+var
+  Index: Integer;
+begin
+  AData := nil;
+  case AEvent.EventType of
+    jetStreamStart, jetStreamEnd, jetObjectEnd, jetArrayEnd:
+      Exit;
+  end;
+  if (FCount = 0) or (FLast.EventType <> AEvent.EventType) or
+    (FLast.EventText <> AEvent.EventText) or
+    (FLast.NestLevel <> AEvent.NestLevel) or
+    (FLast.Line <> AEvent.Line) or (FLast.Column <> AEvent.Column) then
+    raise EJsonParserError.Create(
+      'The event log is off. The event is not the last event of the puller',
+      AEvent.Line, AEvent.Column);
+  // the log holds only the events of this value, from the event on
+  FLogLen := 0;
+  SetLength(FLog, 1);
+  FLog[0] := AEvent;
+  FLogLen := 1;
+  FWindowActive := True;
+  try
+    Index := 0;
+    AData := BuildJsonValue(EventAt, Index);
+  finally
+    ResetWindow;
   end;
 end;
 
@@ -217,6 +308,21 @@ var
 begin
   data := nil;
   Guard;
+  if not FKeepLog then
+  begin
+    try
+      ParseWindow(event, data);
+    except
+      on E: EJsonError do
+      begin
+        data.Free;
+        data := nil;
+        Remember(E);
+        raise;
+      end;
+    end;
+    Exit;
+  end;
   try
     Index := FindEvent(event);
     while (Index < 0) and (not FDone) do
@@ -286,6 +392,16 @@ end;
 procedure TJsonPullerFactory.AllowLeadingDecimalPoint(value: Boolean);
 begin
   FOptions.AllowLeadingDecimalPoint := value;
+end;
+
+procedure TJsonPullerFactory.AllowMultipleValues(value: Boolean);
+begin
+  FOptions.AllowMultipleValues := value;
+end;
+
+procedure TJsonPullerFactory.KeepEventLog(value: Boolean);
+begin
+  FOptions.KeepEventLog := value;
 end;
 
 function TJsonPullerFactory.FromFile(&file: handle): TJsonPuller;

@@ -218,7 +218,7 @@ begin
     case FState of
       psStart:
         begin
-          if FToken.Kind = jtkEnd then
+          if (FToken.Kind = jtkEnd) and not FOptions.AllowMultipleValues then
             Fail('The text has no value', FToken.Line, FToken.Column);
           FState := psStream;
           Exit(MakeJsonEvent(jetStreamStart, '', 0, 1, 1));
@@ -226,7 +226,13 @@ begin
       psStream:
         begin
           if FToken.Kind = jtkEnd then
-            Fail('The text has no value', FToken.Line, FToken.Column);
+          begin
+            if not FOptions.AllowMultipleValues then
+              Fail('The text has no value', FToken.Line, FToken.Column);
+            // a text with no value is an empty sequence of values
+            FState := psDone;
+            Exit(MakeJsonEvent(jetStreamEnd, '', 0, FToken.Line, FToken.Column));
+          end;
           FReturn := psAfterStream;
           FState := psValue;
         end;
@@ -355,6 +361,12 @@ begin
         begin
           FState := psDone;
           Exit(MakeJsonEvent(jetStreamEnd, '', 0, FToken.Line, FToken.Column));
+        end
+        else if FOptions.AllowMultipleValues then
+        begin
+          // the next value starts a new top-level value
+          FReturn := psAfterStream;
+          FState := psValue;
         end
         else
           Fail('The text has a second value', FToken.Line, FToken.Column);

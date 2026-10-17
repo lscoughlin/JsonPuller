@@ -73,6 +73,8 @@ TJsonPullerFactory:
     - AllowMissingValues( value: Boolean, asNull: Boolean = false )
     - AllowLeadingZeros( value: Boolean = false )
     - AllowLeadingDecimalPoint( value: Boolean = false )
+    - AllowMultipleValues( value: Boolean = false )
+    - KeepEventLog( value: Boolean = true )
     - TJsonPuller FromFile( file: handle )
     - TJsonPuller FromStream( astream: TStream )
     - TJsonPuller FromBytes( astream: TBytes )
@@ -95,6 +97,8 @@ setting is the default in the signature, and the initial value of
 | `AllowMissingValues` | false, `asNull` false | A missing element or member written as consecutive commas |
 | `AllowLeadingZeros` | false | A number whose integer part has a redundant leading zero |
 | `AllowLeadingDecimalPoint` | false | A number that starts with a decimal point |
+| `AllowMultipleValues` | false | A text of several top-level values separated by white space, as in JSON Lines |
+| `KeepEventLog` | true | The puller keeps a log of the events that `Next` returned |
 
 The initial values accept every JSON text, and they also accept comments.
 An unquoted key, a trailing comma, a single-quoted string, a missing
@@ -123,6 +127,8 @@ TJsonPuller:
     HasNext: boolean # more events are available
     Parse: TJSONData # reads the whole event stream into an FCL JSON value
     Parse( event: TJsonEvent, data: TJSONData ) # reads one subsection
+    AllowMultipleValues: boolean # true when the factory allowed several top-level values
+    KeepEventLog: boolean # the caller can change the factory value before the first Next
 ```
 
 - `Next` returns the next event from the stream.
@@ -156,6 +162,11 @@ TJsonPuller:
     same puller.
   - The operation reads only the events that the subsection needs. The read
     stops at the end event of the subsection.
+  - After the operation, the next call of `Next` returns the event that
+    follows the subsection.
+  - When `KeepEventLog` is false, `event` is the event that `Next` returned
+    last. Any other event raises `EJsonParserError`. The operation then
+    keeps only the events of the subsection, and it frees them when it ends.
 
 ## TJsonEvent
 

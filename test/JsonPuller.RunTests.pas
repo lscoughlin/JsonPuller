@@ -13,7 +13,7 @@ program JsonPuller.RunTests;
 uses
   SysUtils, Classes, consoletestrunner, JsonPuller.Skeleton.Test,
   JsonPuller.Input.Test, JsonPuller.Scanner.Test, JsonPuller.Parser.Test,
-  JsonPuller.Api.Test, JsonPuller.Section.Test, JsonPuller.Errors.Test,
+  JsonPuller.Api.Test, JsonPuller.Section.Test, JsonPuller.NoLog.Test, JsonPuller.Lines.Test, JsonPuller.Errors.Test,
   JsonPuller.Compliance.Test, JsonPuller.Streaming.Test;
 
 var

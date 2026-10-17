@@ -340,7 +340,15 @@ returns the number of events in the log.
 type, text, nest level, line, and column. The search continues forward from
 the match until the value is complete. When the end of the value is not in
 the log yet, the puller reads more events, and it stops at that end. The
-tail after the subsection stays unread.
+tail after the subsection stays unread. The cursor of `Next` is the parser
+position. After the operation, it stands after the end event of the subsection.
+
+The option `KeepEventLog` turns the log off. In that mode the log is a window.
+`Parse(event, data)` accepts only the event that `Next` returned last. It
+starts the window with that event and appends each event that `Next` returns
+while the builder reads. It empties the window when the value is complete.
+The whole-stream `Parse` works in the same way, and it needs a puller that
+has returned no event.
 
 ## Constraints
 
