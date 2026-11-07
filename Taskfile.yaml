@@ -152,7 +152,7 @@ tasks:
         gh release create "$tag" \
           --title "JsonPuller $ver" \
           --notes-file - \
-          "$zip" <<NOTES
+          "$zip" <<'NOTES'
         A JSON pull parser for Object Pascal (Free Pascal / Lazarus), with an FCL JSON bridge.
 
         ## What this release provides
@@ -185,17 +185,17 @@ tasks:
 
         ## Contents
 
-        The attached \`JsonPuller-$ver-sources.zip\` holds the sources of this tag:
-        \`src/\`, \`test/\`, \`examples/\`, \`doc/\`, the \`Makefile\`, the \`Taskfile.yaml\`,
+        The attached source zip holds the sources of this tag:
+        `src/`, `test/`, `examples/`, `doc/`, the `Makefile`, the `Taskfile.yaml`,
         the Lazarus package file, the README, and the Apache-2.0 license.
 
         ## Build
 
-        \`make\` builds the library. \`make test\` runs the unit tests. \`make examples\`
-        runs each example. \`task check\` runs the unit tests and every example.
+        `make` builds the library. `make test` runs the unit tests. `make examples`
+        runs each example. `task check` runs the unit tests and every example.
 
         Requires Free Pascal 3.2.2 or later. The build is confirmed with 3.2.4.
-        NOTES
+NOTES
 
         echo "published the release $tag"
 
