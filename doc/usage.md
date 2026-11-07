@@ -613,10 +613,17 @@ The scanner holds the current token. A long string can cross a block
 boundary. The token keeps its characters until the token is complete.
 Earlier tokens are already consumed.
 
-The puller appends each returned event to an event log. The subsection
-operation finds its start event in that log. The log grows with the events
-the caller has received. A caller that stops early holds the log of those
-events.
+The puller appends each returned event to an event log when `KeepEventLog`
+(or `KeepLog`) is true. The subsection operation finds its start event in
+that log. The log grows with the events the caller has received.
+
+When `KeepLog(False)` is configured, the puller keeps no event log, or only
+the events of the active parse window. `Parse(event, data)` accepts the event
+that `Next` returned last, with no scan. For any older event, it raises an
+error that names the line and the column. A consumer reading a very large
+JSON array one item at a time (pulling to the array start, then pulling to
+each item start, parsing that item, and freeing it) maintains bounded memory
+proportional to one item rather than the whole document.
 
 The memory that the puller holds follows this table:
 

@@ -34,6 +34,7 @@ type
     procedure TestParseWholeAfterNextRaises;
     procedure TestNilForEndEvents;
     procedure TestPropertySetsMode;
+    procedure TestKeepLogAlias;
   end;
 
 implementation
@@ -98,7 +99,7 @@ begin
   try
     while P.HasNext do
       P.Next;
-    AssertEquals(7, P.EventLogLength);
+    AssertEquals(0, P.EventLogLength);
   finally
     P.Free;
   end;
@@ -258,6 +259,28 @@ begin
     AssertTrue(Raised);
   finally
     P.Free;
+  end;
+end;
+
+procedure TNoLogTest.TestKeepLogAlias;
+var
+  F: TJsonPullerFactory;
+  P: TJsonPuller;
+begin
+  F := TJsonPullerFactory.Create;
+  try
+    F.KeepLog(False);
+    P := F.FromString('[1,2]');
+    try
+      AssertFalse(P.KeepLog);
+      P.KeepLog := True;
+      AssertTrue(P.KeepLog);
+      AssertTrue(P.KeepEventLog);
+    finally
+      P.Free;
+    end;
+  finally
+    F.Free;
   end;
 end;
 

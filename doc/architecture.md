@@ -343,7 +343,7 @@ the log yet, the puller reads more events, and it stops at that end. The
 tail after the subsection stays unread. The cursor of `Next` is the parser
 position. After the operation, it stands after the end event of the subsection.
 
-The option `KeepEventLog` turns the log off. In that mode the log is a window.
+The option `KeepEventLog` (or `KeepLog`) turns the log off. In that mode the log is a window.
 `Parse(event, data)` accepts only the event that `Next` returned last. It
 starts the window with that event and appends each event that `Next` returns
 while the builder reads. It empties the window when the value is complete.
@@ -374,8 +374,8 @@ The behavior in this document and in `doc/dialect.md` is decided.
 | Factory | An instance. It holds the flags and copies them into each puller. |
 | Types | The event type carries the JSON type. There is no schema layer. |
 | Names in the event stream | A name is a `jetName` event. |
-| Duplicate names | The event stream reports each name. `Parse` raises an error. |
-| Numbers | Integer in the Int64 range, otherwise a double, otherwise an error. |
+| Duplicate names | The event stream reports each name. `Parse` raises an error unless `AllowDuplicateNames` is true. |
+| Numbers | Integer in the Int64 or QWord range, otherwise a double, otherwise an error. |
 | Depth | `MaxDepth` is 1000. |
 | Encoding | UTF-8, or a byte order mark that selects a Unicode encoding. |
 | Sources | The puller copies a string or a byte source. It reads a stream or a file in blocks. The caller keeps ownership of the stream and the handle. |

@@ -272,7 +272,7 @@ end;
 
 procedure TApiTest.TestVersion;
 begin
-  AssertEquals('0.1.0', JSON_PULLER_VERSION);
+  AssertEquals('0.2.0', JSON_PULLER_VERSION);
 end;
 
 procedure TApiTest.TestScalars;

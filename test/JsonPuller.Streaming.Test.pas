@@ -14,7 +14,7 @@ unit JsonPuller.Streaming.Test;
 interface
 
 uses
-  SysUtils, Classes, fpcunit, testregistry, JsonPuller, JsonPuller.Input;
+  SysUtils, Classes, fpjson, fpcunit, testregistry, JsonPuller, JsonPuller.Input;
 
 type
   TCountStream = class(TStream)
@@ -28,11 +28,17 @@ type
   end;
 
   TStreamingTest = class(TTestCase)
+  private
+    function BuildArrayText(ACount: Integer): UTF8String;
   published
     procedure TestPrefixRead;
     procedure TestSpanningToken;
     procedure TestReferenceText;
     procedure TestEventLog;
+    procedure TestStreamingBoundedMemory5000;
+    procedure TestStreamingDefaultKeepsLog5000;
+    procedure TestStreamingItemsMatchWholeParse;
+    procedure TestStreamingLinearTime;
   end;
 
 implementation
@@ -183,6 +189,240 @@ begin
     finally
       Puller.Free;
     end;
+  finally
+    Factory.Free;
+  end;
+end;
+
+function TStreamingTest.BuildArrayText(ACount: Integer): UTF8String;
+var
+  I: Integer;
+begin
+  Result := '[';
+  for I := 0 to ACount - 1 do
+  begin
+    if I > 0 then
+      Result := Result + ',';
+    Result := Result + '{"id":' + IntToStr(I) + ',"name":"item' + IntToStr(I) + '","val":' + IntToStr(I * 2) + '}';
+  end;
+  Result := Result + ']';
+end;
+
+procedure TStreamingTest.TestStreamingBoundedMemory5000;
+var
+  Factory: TJsonPullerFactory;
+  Puller: TJsonPuller;
+  Text: UTF8String;
+  Event: TJsonEvent;
+  Item: TJSONData;
+  ItemCount: Integer;
+begin
+  Text := BuildArrayText(5000);
+  Factory := TJsonPullerFactory.Create;
+  try
+    Factory.KeepLog(False);
+    Puller := Factory.FromString(Text);
+    try
+      Event := Puller.Next;
+      AssertTrue(Event.EventType = jetStreamStart);
+      Event := Puller.Next;
+      AssertTrue(Event.EventType = jetArrayStart);
+      ItemCount := 0;
+      while Puller.HasNext do
+      begin
+        Event := Puller.Next;
+        if Event.EventType = jetArrayEnd then
+          Break;
+        AssertTrue(Event.EventType = jetObjectStart);
+        Puller.Parse(Event, Item);
+        try
+          AssertNotNull(Item);
+          AssertTrue(Item is TJSONObject);
+          AssertEquals(ItemCount, TJSONObject(Item).Get('id'));
+          AssertTrue(Puller.EventLogLength <= 10);
+        finally
+          Item.Free;
+        end;
+        AssertTrue(Puller.EventLogLength <= 10);
+        Inc(ItemCount);
+      end;
+      AssertEquals(5000, ItemCount);
+      AssertEquals(0, Puller.EventLogLength);
+    finally
+      Puller.Free;
+    end;
+  finally
+    Factory.Free;
+  end;
+end;
+
+procedure TStreamingTest.TestStreamingDefaultKeepsLog5000;
+var
+  Factory: TJsonPullerFactory;
+  Puller: TJsonPuller;
+  Text: UTF8String;
+  Event: TJsonEvent;
+  Item: TJSONData;
+  ItemCount: Integer;
+begin
+  Text := BuildArrayText(5000);
+  Factory := TJsonPullerFactory.Create;
+  try
+    Puller := Factory.FromString(Text);
+    try
+      Event := Puller.Next;
+      AssertTrue(Event.EventType = jetStreamStart);
+      Event := Puller.Next;
+      AssertTrue(Event.EventType = jetArrayStart);
+      ItemCount := 0;
+      while Puller.HasNext do
+      begin
+        Event := Puller.Next;
+        if Event.EventType = jetArrayEnd then
+          Break;
+        AssertTrue(Event.EventType = jetObjectStart);
+        Puller.Parse(Event, Item);
+        try
+          AssertNotNull(Item);
+          AssertEquals(ItemCount, TJSONObject(Item).Get('id'));
+        finally
+          Item.Free;
+        end;
+        Inc(ItemCount);
+      end;
+      AssertEquals(5000, ItemCount);
+      AssertTrue(Puller.EventLogLength > 30000);
+    finally
+      Puller.Free;
+    end;
+  finally
+    Factory.Free;
+  end;
+end;
+
+procedure TStreamingTest.TestStreamingItemsMatchWholeParse;
+var
+  Factory: TJsonPullerFactory;
+  PullerWhole, PullerStream: TJsonPuller;
+  Text: UTF8String;
+  WholeData, Item: TJSONData;
+  WholeArray: TJSONArray;
+  Event: TJsonEvent;
+  ItemCount: Integer;
+begin
+  Text := BuildArrayText(500);
+  Factory := TJsonPullerFactory.Create;
+  try
+    PullerWhole := Factory.FromString(Text);
+    try
+      WholeData := PullerWhole.Parse;
+    finally
+      PullerWhole.Free;
+    end;
+    try
+      AssertTrue(WholeData is TJSONArray);
+      WholeArray := TJSONArray(WholeData);
+      AssertEquals(500, WholeArray.Count);
+
+      Factory.KeepLog(False);
+      PullerStream := Factory.FromString(Text);
+      try
+        PullerStream.Next;
+        PullerStream.Next;
+        ItemCount := 0;
+        while PullerStream.HasNext do
+        begin
+          Event := PullerStream.Next;
+          if Event.EventType = jetArrayEnd then
+            Break;
+          PullerStream.Parse(Event, Item);
+          try
+            AssertEquals('Class match at ' + IntToStr(ItemCount),
+              WholeArray.Items[ItemCount].ClassName, Item.ClassName);
+            AssertEquals('JSON match at ' + IntToStr(ItemCount),
+              WholeArray.Items[ItemCount].AsJSON, Item.AsJSON);
+            AssertEquals('Field id match',
+              TJSONObject(WholeArray.Items[ItemCount]).Get('id', -1),
+              TJSONObject(Item).Get('id', -1));
+            AssertEquals('Field name match',
+              string(TJSONObject(WholeArray.Items[ItemCount]).Get('name', '')),
+              string(TJSONObject(Item).Get('name', '')));
+            AssertEquals('Field val match',
+              TJSONObject(WholeArray.Items[ItemCount]).Get('val', -1),
+              TJSONObject(Item).Get('val', -1));
+          finally
+            Item.Free;
+          end;
+          Inc(ItemCount);
+        end;
+        AssertEquals(500, ItemCount);
+      finally
+        PullerStream.Free;
+      end;
+    finally
+      WholeData.Free;
+    end;
+  finally
+    Factory.Free;
+  end;
+end;
+
+procedure TStreamingTest.TestStreamingLinearTime;
+var
+  Factory: TJsonPullerFactory;
+  Puller: TJsonPuller;
+  Text2500, Text5000: UTF8String;
+  Event: TJsonEvent;
+  Item: TJSONData;
+  TStart, T2500, T5000: Int64;
+  Ratio: Double;
+begin
+  Text2500 := BuildArrayText(2500);
+  Text5000 := BuildArrayText(5000);
+  Factory := TJsonPullerFactory.Create;
+  try
+    Factory.KeepLog(False);
+
+    // Time for 2,500 items
+    TStart := GetTickCount64;
+    Puller := Factory.FromString(Text2500);
+    try
+      Puller.Next;
+      Puller.Next;
+      while Puller.HasNext do
+      begin
+        Event := Puller.Next;
+        if Event.EventType = jetArrayEnd then Break;
+        Puller.Parse(Event, Item);
+        Item.Free;
+      end;
+    finally
+      Puller.Free;
+    end;
+    T2500 := GetTickCount64 - TStart;
+    if T2500 < 1 then
+      T2500 := 1;
+
+    // Time for 5,000 items
+    TStart := GetTickCount64;
+    Puller := Factory.FromString(Text5000);
+    try
+      Puller.Next;
+      Puller.Next;
+      while Puller.HasNext do
+      begin
+        Event := Puller.Next;
+        if Event.EventType = jetArrayEnd then Break;
+        Puller.Parse(Event, Item);
+        Item.Free;
+      end;
+    finally
+      Puller.Free;
+    end;
+    T5000 := GetTickCount64 - TStart;
+
+    Ratio := T5000 / T2500;
+    AssertTrue('Time ratio must be linear (near 2), got ' + FloatToStr(Ratio), Ratio < 4.0);
   finally
     Factory.Free;
   end;

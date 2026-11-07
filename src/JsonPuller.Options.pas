@@ -29,6 +29,8 @@ type
     /// true when the text can hold more than one top-level value, separated
     /// by white space. JSON Lines (one value on each line) is such a text.
     AllowMultipleValues: Boolean;
+    /// true when an object can have duplicate member names.
+    AllowDuplicateNames: Boolean;
     /// true when the puller keeps a log of the events that Next returned.
     /// With false, Parse(event, data) accepts only the event that Next
     /// returned last.
@@ -51,6 +53,7 @@ begin
   Result.AllowLeadingZeros := False;
   Result.AllowLeadingDecimalPoint := False;
   Result.AllowMultipleValues := False;
+  Result.AllowDuplicateNames := False;
   Result.KeepEventLog := True;
 end;
 

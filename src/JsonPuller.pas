@@ -21,7 +21,7 @@ uses
 
 const
   /// the library version. The package file holds the same version.
-  JSON_PULLER_VERSION = '0.1.0';
+  JSON_PULLER_VERSION = '0.2.0';
 
 type
   /// a file handle. The caller keeps ownership of the handle.
@@ -38,6 +38,7 @@ type
     FCount: Integer;
     FKeepLog: Boolean;
     FMultiple: Boolean;
+    FDuplicateNames: Boolean;
     FWindowActive: Boolean;
     FLast: TJsonEvent;
     FDone: Boolean;
@@ -67,13 +68,17 @@ type
     /// When the factory turned the event log off, event must be the event
     /// that Next returned last.
     procedure Parse(const event: TJsonEvent; out data: TJSONData); overload;
-    /// the number of events that Next has returned
+    /// the number of events in the event log
     function EventLogLength: Integer;
     /// true while the puller keeps a log of the events. The factory sets the
     /// initial value. The caller can change it before the first call of Next.
     property KeepEventLog: Boolean read FKeepLog write FKeepLog;
+    /// alias for KeepEventLog
+    property KeepLog: Boolean read FKeepLog write FKeepLog;
     /// true when the text can hold several top-level values
     property AllowMultipleValues: Boolean read FMultiple;
+    /// true when an object can have duplicate member names
+    property AllowDuplicateNames: Boolean read FDuplicateNames;
   end;
 
   /// the source factory. The factory holds the dialect settings.
@@ -89,9 +94,13 @@ type
     procedure AllowMissingValues(value: Boolean; asNull: Boolean = False);
     procedure AllowLeadingZeros(value: Boolean = False);
     procedure AllowLeadingDecimalPoint(value: Boolean = False);
+    /// with true, an object can have duplicate member names.
+    procedure AllowDuplicateNames(value: Boolean = True);
     /// with false, the puller keeps no log of the events. Memory then follows
     /// the nesting depth and the size of the largest value that Parse builds.
     procedure KeepEventLog(value: Boolean = True);
+    /// alias for KeepEventLog
+    procedure KeepLog(value: Boolean = True);
     /// with true, the text can hold several top-level values separated by white
     /// space, as JSON Lines does. The events of the values follow each other
     /// between one stream start and one stream end.
@@ -119,6 +128,7 @@ begin
   FCount := 0;
   FKeepLog := AOptions.KeepEventLog;
   FMultiple := AOptions.AllowMultipleValues;
+  FDuplicateNames := AOptions.AllowDuplicateNames;
   FWindowActive := False;
   FDone := False;
   FFailed := False;
@@ -147,7 +157,7 @@ end;
 
 function TJsonPuller.EventLogLength: Integer;
 begin
-  Result := FCount;
+  Result := FLogLen;
 end;
 
 procedure TJsonPuller.ResetWindow;
@@ -246,11 +256,11 @@ begin
       // several values: the result is an array of the values
       Result := TJSONArray.Create;
       while EventAt(Index).EventType <> jetStreamEnd do
-        TJSONArray(Result).Add(BuildJsonValue(EventAt, Index));
+        TJSONArray(Result).Add(BuildJsonValue(EventAt, Index, FDuplicateNames));
     end
     else
     begin
-      Result := BuildJsonValue(EventAt, Index);
+      Result := BuildJsonValue(EventAt, Index, FDuplicateNames);
       Event := EventAt(Index);
       if Event.EventType <> jetStreamEnd then
         raise EJsonParserError.Create(
@@ -296,7 +306,7 @@ begin
   FWindowActive := True;
   try
     Index := 0;
-    AData := BuildJsonValue(EventAt, Index);
+    AData := BuildJsonValue(EventAt, Index, FDuplicateNames);
   finally
     ResetWindow;
   end;
@@ -337,7 +347,7 @@ begin
       jetStreamStart, jetStreamEnd, jetObjectEnd, jetArrayEnd:
         data := nil;
     else
-      data := BuildJsonValue(EventAt, Index);
+      data := BuildJsonValue(EventAt, Index, FDuplicateNames);
     end;
   except
     on E: EJsonError do
@@ -394,12 +404,22 @@ begin
   FOptions.AllowLeadingDecimalPoint := value;
 end;
 
+procedure TJsonPullerFactory.AllowDuplicateNames(value: Boolean);
+begin
+  FOptions.AllowDuplicateNames := value;
+end;
+
 procedure TJsonPullerFactory.AllowMultipleValues(value: Boolean);
 begin
   FOptions.AllowMultipleValues := value;
 end;
 
 procedure TJsonPullerFactory.KeepEventLog(value: Boolean);
+begin
+  FOptions.KeepEventLog := value;
+end;
+
+procedure TJsonPullerFactory.KeepLog(value: Boolean);
 begin
   FOptions.KeepEventLog := value;
 end;

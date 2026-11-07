@@ -1,0 +1,21 @@
+{
+  "mcpServers": {
+    "clarity": {
+      "command": "clarity",
+      "args": [
+        "mcp",
+        "--dir",
+        "."
+      ]
+    },
+    "codegraph": {
+      "type": "stdio",
+      "command": "codegraph",
+      "args": [
+        "serve",
+        "--mcp"
+      ],
+      "alwaysLoad": true
+    }
+  }
+}

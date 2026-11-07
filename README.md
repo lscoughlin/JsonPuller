@@ -1,6 +1,6 @@
 # JsonPuller
 
-Version 0.1.0.
+Version 0.2.0.
 
 JsonPuller is a JSON pull parser. It is an Object Pascal library.
 The library uses the FCL JSON classes for the `Parse` result.
@@ -74,7 +74,9 @@ TJsonPullerFactory:
     - AllowLeadingZeros( value: Boolean = false )
     - AllowLeadingDecimalPoint( value: Boolean = false )
     - AllowMultipleValues( value: Boolean = false )
+    - AllowDuplicateNames( value: Boolean = true )
     - KeepEventLog( value: Boolean = true )
+    - KeepLog( value: Boolean = true )
     - TJsonPuller FromFile( file: handle )
     - TJsonPuller FromStream( astream: TStream )
     - TJsonPuller FromBytes( astream: TBytes )
@@ -98,7 +100,9 @@ setting is the default in the signature, and the initial value of
 | `AllowLeadingZeros` | false | A number whose integer part has a redundant leading zero |
 | `AllowLeadingDecimalPoint` | false | A number that starts with a decimal point |
 | `AllowMultipleValues` | false | A text of several top-level values separated by white space, as in JSON Lines |
+| `AllowDuplicateNames` | false | An object that has duplicate member names |
 | `KeepEventLog` | true | The puller keeps a log of the events that `Next` returned |
+| `KeepLog` | true | An alias for `KeepEventLog` |
 
 The initial values accept every JSON text, and they also accept comments.
 An unquoted key, a trailing comma, a single-quoted string, a missing
@@ -127,8 +131,11 @@ TJsonPuller:
     HasNext: boolean # more events are available
     Parse: TJSONData # reads the whole event stream into an FCL JSON value
     Parse( event: TJsonEvent, data: TJSONData ) # reads one subsection
+    EventLogLength: integer # the number of events in the log
     AllowMultipleValues: boolean # true when the factory allowed several top-level values
+    AllowDuplicateNames: boolean # true when the factory allowed duplicate member names
     KeepEventLog: boolean # the caller can change the factory value before the first Next
+    KeepLog: boolean # an alias for KeepEventLog
 ```
 
 - `Next` returns the next event from the stream.

@@ -23,7 +23,8 @@ type
   TJsonGetEvent = function(AIndex: Integer): TJsonEvent of object;
 
 /// build the value that starts at AIndex. AIndex advances past that value.
-function BuildJsonValue(AGet: TJsonGetEvent; var AIndex: Integer): TJSONData;
+function BuildJsonValue(AGet: TJsonGetEvent; var AIndex: Integer;
+  AAllowDuplicateNames: Boolean = False): TJSONData;
 
 implementation
 
@@ -51,13 +52,19 @@ function NumberValue(const AEvent: TJsonEvent): TJSONData;
 var
   Settings: TFormatSettings;
   IntVal: Int64;
+  QWordVal: QWord;
   FloatVal: Double;
 begin
   Settings := DefaultFormatSettings;
   Settings.DecimalSeparator := '.';
   Settings.ThousandSeparator := #0;
-  if IsIntegerSpelling(AEvent.EventText) and TryStrToInt64(AEvent.EventText, IntVal) then
-    Exit(TJSONInt64Number.Create(IntVal));
+  if IsIntegerSpelling(AEvent.EventText) then
+  begin
+    if TryStrToInt64(AEvent.EventText, IntVal) then
+      Exit(TJSONInt64Number.Create(IntVal));
+    if (AEvent.EventText[1] <> '-') and TryStrToQWord(AEvent.EventText, QWordVal) then
+      Exit(TJSONQWordNumber.Create(QWordVal));
+  end;
   if (not TryStrToFloat(AEvent.EventText, FloatVal, Settings)) or
     IsNan(FloatVal) or IsInfinite(FloatVal) then
     raise EJsonParserError.Create(
@@ -65,11 +72,13 @@ begin
   Result := TJSONFloatNumber.Create(FloatVal);
 end;
 
-function BuildObject(AGet: TJsonGetEvent; var AIndex: Integer): TJSONObject;
+function BuildObject(AGet: TJsonGetEvent; var AIndex: Integer;
+  AAllowDuplicateNames: Boolean): TJSONObject;
 var
   Event: TJsonEvent;
   Child: TJSONData;
   Obj: TJSONObject;
+  Idx: Integer;
 begin
   Obj := TJSONObject.Create;
   try
@@ -86,12 +95,17 @@ begin
         raise EJsonParserError.Create(
           'The parser expects a member name', Event.Line, Event.Column);
       Inc(AIndex);
-      Child := BuildJsonValue(AGet, AIndex);
-      if Obj.IndexOfName(Event.EventText) >= 0 then
+      Child := BuildJsonValue(AGet, AIndex, AAllowDuplicateNames);
+      Idx := Obj.IndexOfName(Event.EventText);
+      if Idx >= 0 then
       begin
-        Child.Free;
-        raise EJsonParserError.Create(
-          'The object has a duplicate member name', Event.Line, Event.Column);
+        if not AAllowDuplicateNames then
+        begin
+          Child.Free;
+          raise EJsonParserError.Create(
+            'The object has a duplicate member name', Event.Line, Event.Column);
+        end;
+        Obj.Delete(Idx);
       end;
       Obj.Add(Event.EventText, Child);
     end;
@@ -102,7 +116,8 @@ begin
   end;
 end;
 
-function BuildArray(AGet: TJsonGetEvent; var AIndex: Integer): TJSONArray;
+function BuildArray(AGet: TJsonGetEvent; var AIndex: Integer;
+  AAllowDuplicateNames: Boolean): TJSONArray;
 var
   Event: TJsonEvent;
   Arr: TJSONArray;
@@ -118,7 +133,7 @@ begin
         Inc(AIndex);
         Break;
       end;
-      Arr.Add(BuildJsonValue(AGet, AIndex));
+      Arr.Add(BuildJsonValue(AGet, AIndex, AAllowDuplicateNames));
     end;
     Result := Arr;
     Arr := nil;
@@ -127,7 +142,8 @@ begin
   end;
 end;
 
-function BuildJsonValue(AGet: TJsonGetEvent; var AIndex: Integer): TJSONData;
+function BuildJsonValue(AGet: TJsonGetEvent; var AIndex: Integer;
+  AAllowDuplicateNames: Boolean): TJSONData;
 var
   Event: TJsonEvent;
 begin
@@ -145,9 +161,9 @@ begin
     jetNull:
       Result := TJSONNull.Create;
     jetObjectStart:
-      Result := BuildObject(AGet, AIndex);
+      Result := BuildObject(AGet, AIndex, AAllowDuplicateNames);
     jetArrayStart:
-      Result := BuildArray(AGet, AIndex);
+      Result := BuildArray(AGet, AIndex, AAllowDuplicateNames);
   else
     raise EJsonParserError.Create(
       'The event starts no value', Event.Line, Event.Column);

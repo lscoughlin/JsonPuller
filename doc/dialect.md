@@ -72,6 +72,7 @@ on a strict JSON text.
 | `AllowMissingValues` | false, `asNull` false | A consecutive comma is a missing element or member. The setting stays false so the strict comma grammar stays in force. |
 | `AllowLeadingZeros` | false | A redundant zero before the integer digits is a second number spelling. The setting stays false so the strict number grammar stays in force. |
 | `AllowLeadingDecimalPoint` | false | A number that starts with a decimal point is a second number spelling. The setting stays false so the strict number grammar stays in force. |
+| `AllowDuplicateNames` | false | An object that has duplicate member names. The setting stays false so duplicate member names raise an error. |
 
 A text that RFC 8259 accepts still parses under the initial settings. A
 text that is strict except for comments also parses. A text that uses an
@@ -334,6 +335,17 @@ still parses.
 
 When unquoted keys are also accepted, a number in the name position keeps
 this spelling. `{.5: "half"}` has the member name `.5`.
+
+## Duplicate Member Names
+
+`AllowDuplicateNames(true)` accepts an object that contains multiple members
+with the same name. When `Parse` builds a `TJSONObject`, each duplicate member
+replaces the previous value for that name, so the object holds the last value.
+
+`AllowDuplicateNames(false)` is the initial value. A duplicate member name
+raises an error that names the line and the column of the duplicate name.
+The setting starts false because RFC 8259 specifies that object member names
+must be unique.
 
 ## Flag Combinations
 
