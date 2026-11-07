@@ -21,7 +21,7 @@ uses
 
 const
   /// the library version. The package file holds the same version.
-  JSON_PULLER_VERSION = '0.2.0';
+  JSON_PULLER_VERSION = '0.3.0';
 
 type
   /// a file handle. The caller keeps ownership of the handle.

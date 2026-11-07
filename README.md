@@ -1,6 +1,6 @@
 # JsonPuller
 
-Version 0.2.0.
+Version 0.3.0.
 
 JsonPuller is a JSON pull parser. It is an Object Pascal library.
 The library uses the FCL JSON classes for the `Parse` result.

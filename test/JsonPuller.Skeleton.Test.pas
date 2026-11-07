@@ -172,7 +172,7 @@ end;
 
 procedure TSkeletonTest.TestPuller;
 begin
-  AssertEquals('0.2.0', JSON_PULLER_VERSION);
+  AssertEquals('0.3.0', JSON_PULLER_VERSION);
 end;
 
 procedure TSkeletonTest.TestHeaders;
