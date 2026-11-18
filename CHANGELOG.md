@@ -5,6 +5,13 @@ holds it. Dates follow the release commits.
 
 ## [Unreleased]
 
+## [0.3.0] - 2026-11-18
+
+### Added
+
+- `TJsonPullerFactory.FromReader` reads UTF-8 text from a StreamEx
+  `TTextReader`, such as a `TStreamReader`.
+
 ## [0.2.0] - 2026-11-07
 
 ### Added

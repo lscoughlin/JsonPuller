@@ -16,7 +16,7 @@ unit JsonPuller;
 interface
 
 uses
-  SysUtils, Classes, fpjson, JsonPuller.Events, JsonPuller.Errors,
+  SysUtils, Classes, StreamEx, fpjson, JsonPuller.Events, JsonPuller.Errors,
   JsonPuller.Options, JsonPuller.Input, JsonPuller.Scanner, JsonPuller.Parser;
 
 const
@@ -107,6 +107,9 @@ type
     procedure AllowMultipleValues(value: Boolean = False);
     function FromFile(&file: handle): TJsonPuller;
     function FromStream(astream: TStream): TJsonPuller;
+    /// reads UTF-8 text from a text reader, such as a StreamEx TStreamReader.
+    /// The caller keeps the reader.
+    function FromReader(const areader: TTextReader): TJsonPuller;
     function FromBytes(const astream: TBytes): TJsonPuller;
     function FromString(const astream: UTF8String): TJsonPuller;
   end;
@@ -432,6 +435,11 @@ end;
 function TJsonPullerFactory.FromStream(astream: TStream): TJsonPuller;
 begin
   Result := TJsonPuller.Create(TJsonInput.FromStream(astream), FOptions);
+end;
+
+function TJsonPullerFactory.FromReader(const areader: TTextReader): TJsonPuller;
+begin
+  Result := TJsonPuller.Create(TJsonInput.FromReader(areader), FOptions);
 end;
 
 function TJsonPullerFactory.FromBytes(const astream: TBytes): TJsonPuller;

@@ -8,6 +8,11 @@ The layer copies a string or a byte source. The layer reads a stream or a
 file in blocks of 8192 characters. A leading byte order mark selects the
 encoding. A text with no mark is UTF-8. Line breaks become LF. The column
 counts one per character, and a tab is one character.
+@br
+The layer also reads a text reader, such as a StreamEx TStreamReader. A
+reader gives whole lines only. The layer restores each line break as LF, so
+the text always ends with a line break. The reader must give UTF-8 bytes,
+because the reader splits lines at the byte values 10 and 13.
 }
 unit JsonPuller.Input;
 
@@ -16,7 +21,7 @@ unit JsonPuller.Input;
 interface
 
 uses
-  SysUtils, Classes;
+  SysUtils, Classes, StreamEx;
 
 const
   /// the read block for a stream or a file, in characters after decoding
@@ -34,6 +39,7 @@ type
     FEof: Boolean;
     FComplete: Boolean;
     FStream: TStream;
+    FReader: TTextReader;
     FHandle: THandle;
     FUseHandle: Boolean;
     FSrcBuf: TBytes;
@@ -52,6 +58,7 @@ type
     FPosLine: Integer;
     FPosCol: Integer;
     procedure CopyBytes(const ABytes: TBytes);
+    function PullLines(var ABuffer: TBytes; AWant: Integer): Integer;
     procedure Detect;
     function PullMore: Boolean;
     procedure EnsureEncoding;
@@ -80,6 +87,8 @@ type
     class function FromStream(AStream: TStream): TJsonInput;
     /// read a file handle in blocks. The caller keeps the handle.
     class function FromFile(AHandle: THandle): TJsonInput;
+    /// read a text reader line by line. The caller keeps the reader.
+    class function FromReader(AReader: TTextReader): TJsonInput;
     /// true when a character remains
     function HasChar: Boolean;
     /// the current character as a Unicode scalar value
@@ -179,6 +188,32 @@ begin
   Result := TJsonInput.CreateFile(AHandle);
 end;
 
+class function TJsonInput.FromReader(AReader: TTextReader): TJsonInput;
+begin
+  Result := TJsonInput.CreateStream(nil);
+  Result.FReader := AReader;
+end;
+
+/// reads whole lines until the buffer holds at least AWant bytes or the
+/// reader ends. The reader removes the line breaks, so each line gets an LF.
+function TJsonInput.PullLines(var ABuffer: TBytes; AWant: Integer): Integer;
+var
+  Line: AnsiString;
+begin
+  Result := 0;
+  while (Result < AWant) and not FReader.Eof do
+  begin
+    FReader.ReadLine(Line);
+    if Result + Length(Line) + 1 > Length(ABuffer) then
+      SetLength(ABuffer, Result + Length(Line) + 1);
+    if Length(Line) > 0 then
+      Move(Line[1], ABuffer[Result], Length(Line));
+    Inc(Result, Length(Line));
+    ABuffer[Result] := 10;
+    Inc(Result);
+  end;
+end;
+
 procedure TJsonInput.Detect;
 var
   N, P: Integer;
@@ -267,6 +302,8 @@ begin
   SetLength(Tmp, Want);
   if FStream <> nil then
     Got := FStream.Read(Tmp[0], Want)
+  else if FReader <> nil then
+    Got := PullLines(Tmp, Want)
   else if FUseHandle then
     Got := FileRead(FHandle, Tmp[0], Want)
   else

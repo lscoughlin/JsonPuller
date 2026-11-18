@@ -79,6 +79,7 @@ TJsonPullerFactory:
     - KeepLog( value: Boolean = true )
     - TJsonPuller FromFile( file: handle )
     - TJsonPuller FromStream( astream: TStream )
+    - TJsonPuller FromReader( areader: TTextReader )
     - TJsonPuller FromBytes( astream: TBytes )
     - TJsonPuller FromString( astream: utf8string )
 ```
@@ -115,6 +116,9 @@ methods cover the four data sources:
 
 - `FromFile` reads from a file handle.
 - `FromStream` reads from a `TStream`.
+- `FromReader` reads UTF-8 text from a StreamEx `TTextReader`, for example a
+  `TStreamReader`. The reader gives whole lines, and each line ends with LF.
+  The caller keeps the reader.
 - `FromBytes` reads from a `TBytes` value.
 - `FromString` reads from a UTF-8 string.
 

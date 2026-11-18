@@ -44,6 +44,7 @@ puller releases neither the stream nor the file handle.
 |---|---|---|
 | `FromFile(file: handle)` | An open file handle | A block read from the handle. The caller keeps the handle. |
 | `FromStream(astream: TStream)` | A `TStream` instance | A block read from the stream. The caller keeps the stream. |
+| `FromReader(areader: TTextReader)` | A StreamEx `TStreamReader` or other `TTextReader` | One line at a time. The reader gives UTF-8 bytes. Each line ends with LF. The caller keeps the reader. |
 | `FromBytes(astream: TBytes)` | A `TBytes` value | A copy of the bytes |
 | `FromString(astream: utf8string)` | A UTF-8 string | A copy of the string |
 

@@ -14,7 +14,7 @@ unit JsonPuller.Api.Test;
 interface
 
 uses
-  SysUtils, Classes, fpjson, fpcunit, testregistry, JsonPuller,
+  SysUtils, Classes, StreamEx, fpjson, fpcunit, testregistry, JsonPuller,
   JsonPuller.Events, JsonPuller.Errors;
 
 type
@@ -24,6 +24,7 @@ type
     procedure TestMissingDefault;
     procedure TestFlagCopy;
     procedure TestSources;
+    procedure TestReader;
     procedure TestEventLoop;
     procedure TestIndependence;
     procedure TestVersion;
@@ -476,6 +477,73 @@ begin
     finally
       Puller.Free;
     end;
+  finally
+    Factory.Free;
+  end;
+end;
+
+procedure TApiTest.TestReader;
+var
+  Factory: TJsonPullerFactory;
+  Puller: TJsonPuller;
+  Reader: TStreamReader;
+  Stream: TStringStream;
+  Data: TJSONData;
+  Text: UTF8String;
+
+  /// UTF-8 text from byte values, so that no code page conversion applies
+  function Utf8Of(const AValues: array of Byte): UTF8String;
+  var
+    I: Integer;
+  begin
+    SetLength(Result, Length(AValues));
+    for I := 0 to High(AValues) do
+      Result[I + 1] := AnsiChar(AValues[I]);
+  end;
+
+  function ParseText(const AText: UTF8String; ASmallBuffer: Boolean): UTF8String;
+  begin
+    Stream := TStringStream.Create(AText);
+    try
+      if ASmallBuffer then
+        Reader := TStreamReader.Create(Stream, 16, False)
+      else
+        Reader := TStreamReader.Create(Stream);
+      try
+        Puller := Factory.FromReader(Reader);
+        try
+          Data := Puller.Parse;
+          try
+            Result := Data.AsJSON;
+          finally
+            Data.Free;
+          end;
+        finally
+          Puller.Free;
+        end;
+      finally
+        Reader.Free;
+      end;
+    finally
+      Stream.Free;
+    end;
+  end;
+
+begin
+  Factory := TJsonPullerFactory.Create;
+  try
+    AssertEquals('{"a":[1,2]}', ParseText('{"a":'#13#10'[1,'#10'2]}', False));
+    AssertEquals('{"a":[1,2]}', ParseText('{"a":'#13#10'[1,'#10'2]}', True));
+    // a line much longer than the reader buffer
+    Text := '["' + StringOfChar('x', 40000) + '"]';
+    AssertEquals(Text, ParseText(Text, True));
+    // UTF-8 multi-byte text and a byte order mark
+    AssertEquals(Utf8Of([$5B, $22, $C3, $A9, $F0, $9F, $98, $80, $22, $5D]),
+      ParseText(Utf8Of([$EF, $BB, $BF, $5B, $22, $C3, $A9, $F0, $9F, $98,
+        $80, $22, $5D]), True));
+    // a string value cannot hold a raw line break, so the join is invisible
+    // to a document that ends with no line break
+    AssertEquals('[1]', ParseText('[1]', False));
   finally
     Factory.Free;
   end;
